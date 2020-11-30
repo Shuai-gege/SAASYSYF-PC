@@ -1,0 +1,609 @@
+<template>
+  <div class="app-container">
+    <!-- 搜索框所在区域 -->
+    <div style="margin-top:20px;margin-bottom: 20px">
+      <el-row :gutter="12">
+        <el-col :span="8">
+          <!-- <el-button
+            class="filter-item"
+            type="primary"
+            icon="el-icon-search"
+            @click="handleSearch"
+          >查找</el-button>-->
+          <el-button
+            class="filter-item"
+            style="margin-left: 10px;"
+            type="primary"
+            @click="handleAdd"
+          >
+            <i class="el-icon-plus" />新增
+          </el-button>
+        </el-col>
+      </el-row>
+    </div>
+    <!-- 展示区域 -->
+    <div>
+      <el-row>
+        <el-col :span="23">
+          <el-table
+            :key="tableKey"
+            v-loading="listLoading"
+            :data="list"
+            style="width: 100%;"
+            height="550"
+            border
+          >
+            <el-table-column width="50" label="序号">
+              <template slot-scope="scope">
+                <span>{{ scope.$index+(listQuery.page - 1) * listQuery.limit + 1 }}</span>
+              </template>
+            </el-table-column>
+            <!-- <el-table-column prop="id" label="ID" width="200" /> -->
+            <el-table-column prop="materialsName" label="物料名称" />
+            <el-table-column prop="typeName" label="物料分类" />
+            <el-table-column prop="brandName" label="物料品牌" />
+            <el-table-column prop="unit" label="单位" />
+            <!-- <el-table-column prop="materialsImg" label="物料图片"  /> -->
+            <el-table-column prop="remark" label="物料备注" />
+            <el-table-column
+              prop="createTime"
+              label="操作时间"
+              width="200"
+              :formatter="formatDateTime"
+            />
+            <el-table-column label="操作">
+              <template slot-scope="scope">
+                <el-button type="text" size="small" @click="handleEdit(scope)">编辑</el-button>
+                <el-button type="text" size="small" @click="handleDelete(scope)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <pagination
+            v-show="total>0"
+            :total="total"
+            :page.sync="listQuery.page"
+            :limit.sync="listQuery.limit"
+            @pagination="getList"
+          />
+        </el-col>
+      </el-row>
+    </div>
+    <!-- 编辑弹出框 -->
+    <el-dialog :visible.sync="dialogVisibleEdit" title="编辑">
+      <el-form ref="form" :model="entityVO" label-width="80px" label-position="right">
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="物料名称" prop="materialsName">
+              <el-input v-model="entityVO.materialsName" placeholder="物料名称" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="物料分类" prop="materialsTypeId">
+              <el-autocomplete
+                class="inline-input"
+                v-model="entityVO.typeName"
+                :fetch-suggestions="querySearch"
+                placeholder="请输入内容"
+                @select="handleSelect"
+              ></el-autocomplete>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="物料品牌" prop="materialsBrandId">
+              <el-autocomplete
+                class="inline-input"
+                v-model="entityVO.brandName"
+                :fetch-suggestions="querySearch1"
+                placeholder="请输入内容"
+                @select="handleSelect1"
+              ></el-autocomplete>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="单位/数量" prop="unit">
+              <el-input v-model="entityVO.unit" placeholder="单位、以实际情况记录。" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <!-- <el-row>
+          <el-col :span="24">
+            <el-form-item label="物料图片" prop="materialsImg">
+              <el-upload
+                action="https://jsonplaceholder.typicode.com/posts/"
+                list-type="picture-card"
+                :on-preview="handlePictureCardPreview"
+                :on-remove="handleRemove"
+                :on-success="end"
+                :limit="1"
+              >
+                <i class="el-icon-plus"></i>
+              </el-upload>
+              <el-dialog :visible.sync="dialogVisible">
+                <img width="100%" :src="dialogImageUrl" alt />
+              </el-dialog>
+            </el-form-item>
+          </el-col>
+        </el-row>-->
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="物料备注" prop="remark">
+              <el-input v-model="entityVO.remark" placeholder="物料备注" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="操作时间" prop="createTime">
+              <el-date-picker v-model="entityVO.createTime" type="datetime" placeholder="操作时间"></el-date-picker>
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button type="danger" @click="dialogVisibleEdit=false">取消</el-button>
+        <el-button type="primary" @click="confirmTbmaterialsmanageEdit">确定</el-button>
+      </span>
+    </el-dialog>
+    <!-- 新增弹出框 -->
+    <el-dialog :visible.sync="dialogVisibleAdd" title="新增">
+      <el-form ref="form" :model="entityVO" label-width="80px" label-position="right">
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="物料名称" prop="materialsName">
+              <el-input v-model="entityVO.materialsName" placeholder="物料名称" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="物料分类" prop="materialsTypeId">
+              <el-autocomplete
+                class="inline-input"
+                v-model="state1"
+                :fetch-suggestions="querySearch"
+                placeholder="请输入内容"
+                @select="handleSelect"
+              ></el-autocomplete>
+              <!-- 直接添加或者选择 -->
+              <!-- <el-popover placement="right" style="width: 100%" trigger="click"> -->
+              <!-- 按钮 -->
+              <!-- <div style="text-align: left; margin: 0">
+                  <el-button type="primary" size="mini" @click="addDictInfo('device_type')">新建条目</el-button>
+              </div>-->
+              <!-- 表格 -->
+              <!-- <el-table :data="gridData" style="width:100%">
+                  <el-table-column width="150" property="date" label="日期">
+                    <template slot="header" slot-scope="scope">
+                      <el-input v-model="searchDeviceType" size="medium" placeholder="输入关键字搜索" />
+              </template>-->
+              <!-- fenge  -->
+              <!-- <template slot-scope="scope">
+                      <el-button
+                        style="width: 100%; text-align: left"
+                        size="mini"
+                        type="text"
+                        @click="selectDict(scope)"
+                      >{{scope.row.date}}</el-button>
+                    </template>
+                  </el-table-column>
+                  <el-table-column width="100" property="name" label="姓名">
+                    <template slot-scope="scope">
+                      <el-button
+                        type="text"
+                        size="mini"
+                        style="color: #C03639"
+                        @click="editDictInfo(scope)"
+                      >编辑</el-button>
+                      <el-button
+                        type="text"
+                        size="mini"
+                        style="color: #8c939d"
+                        @click="dictInfoDelete(scope)"
+                      >删除</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <el-button
+                  slot="reference"
+                  ref="deviceBrandSelect"
+                  style="width: 100%; text-align: left; color: #8c939d"
+                  v-cloak
+                >我点点</el-button>
+              </el-popover>-->
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="物料品牌" prop="materialsBrandId">
+              <el-autocomplete
+                class="inline-input"
+                v-model="state2"
+                :fetch-suggestions="querySearch1"
+                placeholder="请输入内容"
+                @select="handleSelect1"
+              ></el-autocomplete>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="单位/数量" prop="unit">
+              <el-input v-model="entityVO.unit" placeholder="单位、以实际情况记录。" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <!-- <el-row>
+          <el-col :span="24">
+            <el-form-item label="物料图片" prop="materialsImg">
+              <el-upload
+                action="https://jsonplaceholder.typicode.com/posts/"
+                list-type="picture-card"
+                :on-preview="handlePictureCardPreview"
+                :on-remove="handleRemove"
+                :on-success="end"
+                :limit="1"
+              >
+                <i class="el-icon-plus"></i>
+              </el-upload>
+              <el-dialog :visible.sync="dialogVisible">
+                <img width="100%" :src="dialogImageUrl" alt />
+              </el-dialog>
+            </el-form-item>
+          </el-col>
+        </el-row>-->
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="物料备注" prop="remark">
+              <el-input v-model="entityVO.remark" placeholder="物料备注" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="操作时间" prop="createTime">
+              <el-date-picker v-model="entityVO.createTime" type="datetime" placeholder="操作时间"></el-date-picker>
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button type="danger" @click="dialogVisibleAdd=false">取消</el-button>
+        <el-button type="primary" @click="confirmTbmaterialsmanageAdd">确定</el-button>
+      </span>
+    </el-dialog>
+  </div>
+</template>
+
+<script>
+import { getToken } from '@/utils/auth'
+import {
+  tbmaterialsmanagelist,
+  tbmaterialsmanageedit,
+  tbmaterialsmanagedelete,
+  tbmaterialsmanageadd,
+  tbMaterialsBrandList, //查询设备/物料品牌接口
+  tbMaterialsTypeList //查询设备/物料类型接口
+} from '@/api/iguard/tbmaterialsmanage/tbmaterialsmanage'
+import Pagination from '@/components/Pagination' // Secondary package based on el-pagination
+import { formatTimeToStr } from '@/utils/dateUtil'
+import { deepClone } from '@/utils'
+const token = getToken()
+const entityVO = {
+  uid: localStorage.getItem('uid'),
+  id: '',
+  materialsName: '',
+  materialsTypeId: '',
+  materialsBrandId: '',
+  unit: '',
+  materialsImg: '',
+  remark: '',
+  createTime: ''
+}
+
+export default {
+  name: `tbmaterialsmanage`,
+  components: { Pagination },
+  data() {
+    return {
+      list: null,
+      total: 0,
+      tableKey: 0,
+      listLoading: false,
+      listQuery: {
+        uid: localStorage.getItem('uid'),
+        page: 1,
+        limit: 50,
+        id: '',
+        materialsName: '',
+        materialsTypeId: '',
+        materialsBrandId: '',
+        unit: '',
+        materialsImg: '',
+        remark: '',
+        createTime: ''
+      },
+      headersObj: { 'LinkAdmin-Token': token },
+      activeName: 'first',
+      dialogVisibleEdit: false,
+      dialogVisibleAdd: false,
+      dialogType: 'new',
+      entityVO: Object.assign({}, entityVO),
+      wuLiaoType: {
+        //查询物料/设备品牌接口
+        uid: localStorage.getItem('uid'),
+        id: '', // 物料品牌的数据id
+        brandName: '' // 物料品牌的品牌名称
+      },
+      wuLiaoType01: {
+        //查询物料/设备类型接口
+        uid: localStorage.getItem('uid'),
+        id: '', // 物料类型的数据id
+        typeName: '' // 物料类型名称
+      },
+      restaurants: [], //物料/设备类型List
+      restaurants00: [], //物料/设备品牌List
+      restaurants01: [], //物料/设备类型List自己新加字段value
+      restaurants02: [], //物料/设备品牌List自己新加字段value
+      state1: '', //物料/设备分类
+      state2: '', //物料/设备品牌
+      dialogImageUrl: '', //上传物料图片
+      dialogVisible: false, //上传物料图片
+      image: '', //上传物料图片
+      gridData: [
+        {
+          date: '2016-05-02',
+          name: '王小虎'
+        },
+        {
+          date: '2016-05-04',
+          name: '王小虎'
+        },
+        {
+          date: '2016-05-01',
+          name: '王小虎'
+        },
+        {
+          date: '2016-05-03',
+          name: '王小虎'
+        }
+      ],
+      searchDeviceType: '' //新增筛选用
+    }
+  },
+  watch: {
+    searchDeptName(val) {
+      this.$refs.serchDeptTree.filter(val)
+    },
+    // 筛选
+    searchDeviceType: function(val, oldVal) {
+      console.log(val)
+      console.log(oldVal)
+    }
+  },
+  created() {
+    this.getList()
+  },
+  mounted() {},
+  methods: {
+    async getList() {
+      this.listLoading = true
+      // If the Promise is rejected, the rejected value is thrown.
+      try {
+        const res = await tbmaterialsmanagelist(this.listQuery)
+        this.listLoading = false
+        this.list = res.result.rows
+        this.total = res.result.records
+      } catch (e) {
+        this.listLoading = false
+      }
+    },
+    // 时间格式化
+    formatDateTime(row, column) {
+      return formatTimeToStr(row.createTime, 'yyyy-MM-dd hh:mm:ss')
+    },
+    // 物料/设备类型
+    async querySearch(queryString, cb) {
+      try {
+        const res = await tbMaterialsTypeList(this.wuLiaoType01)
+        this.restaurants = res.result.rows
+        for (var i = 0; i < res.result.rows.length; i++) {
+          this.$set(this.restaurants[i], 'value', this.restaurants[i].typeName)
+        }
+        var restaurants1 = queryString
+          ? this.restaurants.filter(this.createFilter(queryString))
+          : this.restaurants
+      } catch (e) {
+        console.log(e)
+      }
+      // 调用 callback 返回建议列表的数据
+      cb(restaurants1)
+    },
+    //物料/设备类型每个选中的信息
+    handleSelect(item) {
+      console.log(item)
+      this.entityVO.materialsTypeId = item.id
+    },
+    // 物料/设备品牌
+    async querySearch1(queryString, cb) {
+      try {
+        const res = await tbMaterialsBrandList(this.wuLiaoType)
+        this.restaurants00 = res.result.rows
+        for (var i = 0; i < res.result.rows.length; i++) {
+          this.$set(
+            this.restaurants00[i],
+            'value',
+            this.restaurants00[i].brandName
+          )
+        }
+        var restaurants2 = queryString
+          ? this.restaurants00.filter(this.createFilter(queryString))
+          : this.restaurants00
+      } catch (e) {
+        console.log(e)
+      }
+      // 调用 callback 返回建议列表的数据
+      cb(restaurants2)
+    },
+    //物料/设备品牌每个选中的信息
+    handleSelect1(item) {
+      console.log(item)
+      this.entityVO.materialsBrandId = item.id
+    },
+    // 设备/物料类型筛选
+    createFilter(queryString) {
+      return restaurant => {
+        return (
+          restaurant.value.toLowerCase().indexOf(queryString.toLowerCase()) ===
+          0
+        )
+      }
+    },
+    // 图片上传
+    handleRemove(file, fileList) {
+      console.log(file, fileList)
+    },
+    handlePictureCardPreview(file) {
+      this.dialogImageUrl = file.url
+      this.dialogVisible = true
+    },
+    end(response, file, fileList) {
+      console.log(file)
+      this.image = file.url
+      console.log(this.image)
+    },
+    // 查询
+    // handleSearch() {
+    //   this.getList();
+    // },
+    // 点击编辑按钮触发
+    handleEdit(scope) {
+      this.dialogVisibleEdit = true
+      this.entityVO = deepClone(scope.row)
+    },
+    // 点击新增按钮触发
+    handleAdd(scope) {
+      this.dialogVisibleAdd = true
+    },
+    // 编辑功能结束，点击确定按钮触发
+    async confirmTbmaterialsmanageEdit() {
+      const res = await tbmaterialsmanageedit(this.entityVO)
+      const result = res.code
+      if (result == 20000) {
+        this.$message({
+          showClose: true,
+          message: '编辑成功',
+          type: 'success'
+        })
+        this.dialogVisibleEdit = false
+        this.getList()
+      }
+    },
+    // 新增功能结束，点击确定按钮触发
+    async confirmTbmaterialsmanageAdd() {
+      if (this.entityVO.materialsName == '') {
+        this.$message({
+          showClose: true,
+          message: '请输入物料名称',
+          type: 'warning'
+        })
+      } else if (this.state1 == '') {
+        this.$message({
+          showClose: true,
+          message: '请输入物料分类',
+          type: 'warning'
+        })
+      } else if (this.state2 == '') {
+        this.$message({
+          showClose: true,
+          message: '请输入物料品牌',
+          type: 'warning'
+        })
+      } else if (this.entityVO.unit == '') {
+        this.$message({
+          showClose: true,
+          message: '请输入物料物料数量',
+          type: 'warning'
+        })
+      }
+      // else if (this.image == "") {
+      //   this.$message({
+      //     showClose: true,
+      //     message: "请等待图片上传完成",
+      //     type: "warning"
+      //   });
+      // }
+      else if (this.entityVO.remark == '') {
+        this.$message({
+          showClose: true,
+          message: '请输入备注/用途',
+          type: 'warning'
+        })
+      } else {
+        const res = await tbmaterialsmanageadd(this.entityVO)
+        const result = res.code
+        if (result == 20000) {
+          this.$message({
+            showClose: true,
+            message: '新增成功',
+            type: 'success'
+          })
+          this.dialogVisibleAdd = false
+          this.getList()
+        }
+      }
+    },
+    // 点击删除按钮触发 删除生成的表的记录
+    async handleDelete(scope) {
+      const h = this.$createElement
+      this.entityVO = deepClone(scope.row)
+      this.$msgbox({
+        title: '删除消息',
+        message: h('p', null, [
+          h('span', null, '确定要删除 '),
+          h('i', { style: 'color: teal' }, '这条记录吗?')
+        ]),
+        showCancelButton: true,
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        beforeClose: async (action, instance, done) => {
+          if (action === 'confirm') {
+            const res = await tbmaterialsmanagedelete(this.entityVO)
+            if (res.code == 20000) {
+              done()
+            }
+          } else {
+            done()
+          }
+        }
+      }).then(action => {
+        this.$message({
+          showClose: true,
+          type: 'success',
+          message: '删除成功'
+        })
+        this.getList()
+      })
+    },
+    // 新增
+    addDictInfo(type) {
+      console.log(type)
+    },
+    selectDict(scope) {
+      console.log(scope)
+    },
+    editDictInfo(scope) {
+      console.log(scope)
+    },
+    dictInfoDelete(scope) {
+      console.log(scope)
+    }
+  }
+}
+</script>

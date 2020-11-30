@@ -1,0 +1,464 @@
+<template>
+  <div class="app-container">
+    <div style="margin-top:20px;margin-bottom: 20px">
+      <el-row :gutter="20">
+        <el-col :span="4">
+<!--          类型/品牌/型号/-->
+          <el-input v-model="listQuery.name" placeholder="名称" />
+        </el-col>
+
+        <el-col :span="4">
+          <el-select v-model="listQuery.building" placeholder="建筑" clearable @change="getFloors">
+            <el-option
+              v-for="item in buildings"
+              :key="item.id"
+              :label="item.locationName"
+              :value="item.id"
+            />
+          </el-select>
+        </el-col>
+
+        <el-col :span="4">
+          <el-select v-model="listQuery.floor" placeholder="楼层" clearable >
+            <el-option
+              v-for="item in floors"
+              :key="item.id"
+              :label="item.locationName"
+              :value="item.id"
+            />
+          </el-select>
+        </el-col>
+
+        <el-col :span="8">
+          <el-button
+            v-permission="['/rest/deviceInfo/list']"
+            class="filter-item"
+            type="primary"
+            icon="el-icon-search"
+            @click="handleSearch"
+          >查找</el-button>
+          <el-button
+            v-permission="['/rest/deviceInfo/add']"
+            class="filter-item"
+            style="margin-left: 10px;"
+            type="primary"
+            @click="handleCreate"
+          >
+            <i class="el-icon-plus" />新增设备
+          </el-button>
+
+          <el-button
+            v-permission="['/rest/deviceInfo/exportQR']"
+            class="filter-item"
+            style="margin-left: 10px;"
+            type="primary"
+            @click="handleExportQR"
+          >导出二维码
+          </el-button>
+
+        </el-col>
+      </el-row>
+
+    </div>
+
+    <el-table
+      :key="tableKey"
+      v-loading="listLoading"
+      :data="list"
+      border
+      style="width: 100%;"
+      height="450"
+    >
+
+      <el-table-column width="50" label="序号">
+        <template slot-scope="scope">
+          <span>{{ scope.$index+(listQuery.page - 1) * listQuery.limit + 1 }}</span>
+        </template>
+      </el-table-column>
+
+      <el-table-column prop="name" label="设备名称" />
+
+      <el-table-column prop="typeName" label="类型" :formatter="formatType" />
+
+      <el-table-column prop="brandName" label="品牌" :formatter="formatBrand" />
+
+      <el-table-column prop="deviceModel" label="型号" :formatter="formatModel" />
+
+      <el-table-column prop="address" label="地址" :formatter="formatAddress"/>
+
+      <el-table-column prop="putTime" label="投放日期" />
+
+      <el-table-column prop="remark" label="备注" />
+
+      <el-table-column prop="rqUrl" label="二维码">
+        <template slot-scope="scope">
+          <el-image
+            style="width: 100px; height: 100px"
+            :src= scope.row.qrUrl
+            :preview-src-list=[scope.row.qrUrl]>
+          </el-image>
+        </template>
+      </el-table-column>
+
+      <el-table-column prop="imgUrl" label="图片" >
+        <template slot-scope="scope">
+          <el-image
+            style="width: 100px; height: 100px"
+            :src= scope.row.imgUrl
+            :preview-src-list=[scope.row.imgUrl]>
+          </el-image>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="操作">
+        <template slot-scope="scope">
+          <el-button
+            v-permission="['/rest/deviceInfo/update']"
+            type="text"
+            size="small"
+            @click="handleEdit(scope)"
+          >编辑</el-button>
+          <el-button
+            v-permission="['/rest/deviceInfo/delete']"
+            type="text"
+            size="small"
+            @click="handleDelete(scope)"
+          >删除</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+    <pagination
+      v-show="total>0"
+      :total="total"
+      :page.sync="listQuery.page"
+      :limit.sync="listQuery.limit"
+      @pagination="getList"
+    />
+    <el-dialog :visible.sync="dialogVisible" :title="dialogType==='edit'?'编辑':'新增'">
+      <el-form ref="form" :model="deviceInfo" :rules="rules" label-position="right" label-width="80px">
+        <el-form-item label="设备名称" prop="name">
+          <el-input v-model="deviceInfo.name" placeholder="岗位名" />
+        </el-form-item>
+        <el-form-item label="类型" prop="type">
+          <el-select v-model="deviceInfo.type" filterable>
+            <el-option
+              v-for="item in deviceTypes"
+              :key="item.data_key"
+              :label="item.data_value"
+              :value="item.data_key"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="品牌" prop="brand">
+          <el-select v-model="deviceInfo.brand" filterable>
+            <el-option
+              v-for="item in deviceBrands"
+              :key="item.data_key"
+              :label="item.data_value"
+              :value="item.data_key"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="型号" prop="model">
+          <el-select v-model="deviceInfo.model" filterable>
+            <el-option
+              v-for="item in deviceModels"
+              :key="item.data_key"
+              :label="item.data_value"
+              :value="item.data_key"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="位置" prop="model">
+          <el-select v-model="deviceInfo.building" placeholder="建筑" clearable @change="getFloors">
+            <el-option
+              v-for="item in buildings"
+              :key="item.id"
+              :label="item.locationName"
+              :value="item.id"
+            />
+          </el-select>
+
+          <el-select v-model="deviceInfo.floor" placeholder="楼层" clearable>
+            <el-option
+              v-for="item in floors"
+              :key="item.id"
+              :label="item.locationName"
+              :value="item.id"
+            />
+          </el-select>
+
+        </el-form-item>
+
+        <el-form-item label="投用时间" prop="putTime">
+          <el-date-picker
+            v-model="deviceInfo.putTime"
+            type="date"
+            placeholder="选择日期">
+          </el-date-picker>
+        </el-form-item>
+
+        <el-form-item label="备注描述" prop="remark">
+          <el-input
+            type="textarea"
+            placeholder="请输入内容"
+            v-model="deviceInfo.remark"
+          >
+          </el-input>
+        </el-form-item>
+
+        <el-form-item label="图片">
+          <el-upload
+            :action="uploadPath"
+            list-type="picture-card"
+            :limit=1
+            :on-success="handlePictureSuccess"
+          >
+            <i class="el-icon-plus"></i>
+          </el-upload>
+        </el-form-item>
+
+      </el-form>
+      <div style="text-align:right;">
+        <el-button type="danger" @click="dialogVisible=false">取消</el-button>
+        <el-button type="primary" @click="confirmDeviceInfo">确定</el-button>
+      </div>
+    </el-dialog>
+  </div>
+</template>
+<script>
+  import permission from '@/directive/permission/index.js' // 权限判断指令
+  import {
+    deviceList,
+    addDevice,
+    updateDevice,
+    deleteDevice,
+    exportQR
+  } from '@/api/iguard/device/device'
+
+  import {
+    dictInfo
+  } from '@/api/permission/dict'
+
+  import {
+    getCompanyBuildingLocation,
+    getBuildingLocationFloor
+  } from '@/api/iguard/tbbuildinglocation/tbbuildinglocation'
+
+  import Pagination from '@/components/Pagination' // Secondary package based on el-pagination
+  import { deepClone } from '@/utils'
+  const defaultDeviceInfo= {
+    id: undefined,
+    name: '',
+    type: undefined,
+    brand: undefined,
+    model: undefined,
+    building: undefined,
+    floor: undefined,
+    putTime: undefined,
+    remark:'',
+    imgUrl:'',
+  };
+  export default {
+    name: 'DeviceInfo',
+    components: { Pagination },
+    directives: { permission },
+    data() {
+      return {
+        tableKey: 0,
+        list: null,
+        total: 0,
+        listLoading: false,
+        listQuery: {
+          page: 1,
+          limit: 10,
+          name: ''
+        },
+        deviceInfo: Object.assign({}, defaultDeviceInfo),
+        dialogVisible: false,
+        dialogType: 'new',
+        deviceTypes:null,
+        deviceBrands:null,
+        deviceModels:null,
+        buildings:null,
+        floors:null,
+        dialogImageUrl: '',
+        dialogImageVisible: false,
+        uploadPath: process.env.VUE_APP_BASE_API_URL + '/public/rest/img/upload',
+        baseUrl:process.env.VUE_APP_BASE_API_URL,
+        rules: {
+          name: [
+            { required: true, message: '请输入岗位名', trigger: 'blur' },
+            { min: 2, max: 15, message: '长度在 2 到 15 个字符', trigger: 'blur' }
+          ],
+          state: [{ required: true, message: '请选择状态', trigger: 'change' }]
+        }
+      }
+    },
+    created() {
+      this.getList();
+
+      this.getDeviceTypes();
+      this.getDeviceBrands();
+      this.getDeviceModels();
+      this.getBuildings();
+    },
+    methods: {
+      async getList() {
+        this.listLoading = true;
+        try {
+          const res = await deviceList(this.listQuery);
+          this.listLoading = false;
+          this.list = res.result.rows;
+          this.total = res.result.records
+        } catch (e) {
+          this.listLoading = false
+        }
+      },
+
+      async getDeviceTypes() {
+        this.listLoading = true
+        try {
+          const res = await dictInfo("device_type");
+          this.listLoading = false
+          this.deviceTypes = res.result;
+        } catch (e) {
+          this.listLoading = false
+        }
+      },
+
+      async getDeviceBrands() {
+        const res = await dictInfo("device_brand");
+        const result = res.result;
+        this.deviceBrands = result;
+      },
+
+      async getDeviceModels() {
+        this.listLoading = true;
+        try {
+          const res = await dictInfo("device_model");
+          this.listLoading = false;
+          this.deviceModels = res.result;
+        } catch (e) {
+          this.listLoading = false
+        }
+      },
+
+
+      async getBuildings() {
+        this.listLoading = true;
+        try {
+          const res = await getCompanyBuildingLocation();
+          this.listLoading = false;
+          this.buildings = res.result;
+        } catch (e) {
+          this.listLoading = false
+        }
+      },
+
+      async getFloors(vId){
+        this.listLoading = true;
+        try {
+          const res =  await getBuildingLocationFloor(vId);
+          this.listLoading = false;
+          this.floors = res.result;
+        } catch (e) {
+          this.listLoading = false
+        }
+      },
+
+      handleSearch() {
+        this.getList()
+      },
+
+
+      handlePictureSuccess(response, file, fileList){
+        this.deviceInfo.imgUrl = this.baseUrl + "/public/rest/img/"+ response.result;
+      },
+
+      handlePictureRemove(file, fileList) {
+        console.log(file, fileList);
+      },
+
+      handlePictureCardPreview(file) {
+        this.dialogImageUrl = file.url;
+        this.dialogImageVisibleVisible = true;
+      },
+
+
+      formatType(row, column) {
+        return row.typeName;
+      },
+      formatBrand(row, column){
+        return row.brandName;
+      },
+
+      formatModel(row, column){
+        return row.modelName;
+      },
+
+      formatAddress(row, column){
+        return row.buildingName + '-' + row.floorName;
+      },
+
+      handleCreate() {
+        this.dialogType = 'new';
+        this.dialogVisible = true
+        this.deviceInfo = Object.assign({}, defaultDeviceInfo);
+      },
+      handleEdit(scope) {
+        this.dialogType = 'edit';
+        this.dialogVisible = true;
+        this.checkStrictly = true;
+        this.deviceInfo = deepClone(scope.row);
+      },
+
+
+      async handleExportQR() {
+        const res =  await exportQR(this.listQuery);
+        window.location.href = this.baseUrl + "/public/rest/qrZip/" + res.result;
+      },
+
+
+
+      async confirmDeviceInfo() {
+        const isEdit = this.dialogType === 'edit'
+        if (isEdit) {
+          await updateDevice(this.deviceInfo)
+        } else {
+          await addDevice(this.deviceInfo)
+        }
+        this.dialogVisible = false
+        this.$message({
+          showClose: true,
+          message: '保存成功',
+          type: 'success'
+        });
+        this.getList();
+      },
+
+      handleDelete({ row }) {
+        this.$confirm('确认删除?', '警告', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
+          .then(async() => {
+            await deleteDevice(row.id)
+            this.$message({
+              showClose: true,
+              message: '删除成功',
+              type: 'success'
+            })
+            this.getList()
+          })
+          .catch(err => {
+            console.error(err)
+          })
+      }
+    }
+  }
+</script>

@@ -1,0 +1,281 @@
+<template>
+  <div class="app-container">
+    <div style="margin-top:20px;margin-bottom: 20px">
+      <el-row :gutter="20">
+        <el-col :span="8">
+          <el-date-picker
+            v-model="listQuery.chackTime"
+            type="datetimerange"
+            align="right"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            :default-time="['00:00:00', '23:59:59']">
+          </el-date-picker>
+        </el-col>
+
+        <el-col :span="4">
+          <el-select v-model="listQuery.assignerId" placeholder="分配人" clearable>
+            <el-option
+              v-for="item in assignerList"
+              :key="item.id"
+              :label="item.locationName"
+              :value="item.id"
+            />
+          </el-select>
+        </el-col>
+
+        <el-col :span="4">
+          <el-select v-model="listQuery.checkStatus" placeholder="任务状态" clearable>
+            <el-option
+              v-for="item in checkStatusList"
+              :key="item.id"
+              :label="item.title"
+              :value="item.id"
+            />
+          </el-select>
+        </el-col>
+
+        <el-col :span="8">
+          <el-button
+            v-permission="['/rest/deviceInfo/list']"
+            class="filter-item"
+            type="primary"
+            icon="el-icon-search"
+            @click="handleSearch"
+          >查找</el-button>
+
+          <el-button
+            v-permission="['/rest/deviceInfo/exportQR']"
+            class="filter-item"
+            style="margin-left: 10px;"
+            type="primary"
+            @click="handleCreate"
+          >导出</el-button>
+
+        </el-col>
+      </el-row>
+
+    </div>
+
+    <el-table
+      :key="tableKey"
+      v-loading="listLoading"
+      :data="list"
+      border
+      style="width: 100%;"
+      height="450"
+    >
+
+      <el-table-column width="50" label="序号">
+        <template slot-scope="scope">
+          <span>{{ scope.$index+(listQuery.page - 1) * listQuery.limit + 1 }}</span>
+        </template>
+      </el-table-column>
+
+      <el-table-column prop="checkTime" label="点检任务时间" :formatter="formatCheckTime"/>
+
+      <el-table-column prop="assignerName" label="分配人"  />
+
+      <el-table-column prop="examinerName" label="点检人" />
+
+      <el-table-column prop="checkStatus" label="任务状态" :formatter="formatCheckStatus" />
+
+      <el-table-column prop="unusualDeviceNum" label="异常设备数量"/>
+
+      <el-table-column prop="grade" label="任务评分" />
+
+      <el-table-column prop="deviceNum" label="任务" :formatter="formatDeviceNum"/>
+      <el-table-column label="操作">
+        <template slot-scope="scope">
+          <el-button
+            type="text"
+            size="small"
+            @click="infoDetail(scope)"
+          >详情</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+    <pagination
+      v-show="total>0"
+      :total="total"
+      :page.sync="listQuery.page"
+      :limit.sync="listQuery.limit"
+      @pagination="getList"
+    />
+    <el-dialog :visible.sync="dialogVisible" title="详情">
+
+      <el-tag type="warning">未点检设备</el-tag>
+      <el-table
+        :key="unCheckTableKey"
+        v-loading="listLoading"
+        :data="unCheckList"
+        border
+        style="width: 100%;"
+      >
+        <el-table-column width="50" label="序号">
+          <template slot-scope="scope">
+            <span>{{ scope.$index+(listQuery.page - 1) * listQuery.limit + 1 }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="deviceName" label="设备名"  />
+        <el-table-column prop="brandName" label="设备类型"  />
+        <el-table-column prop="deviceModel" label="设备位置" :formatter="formatAddress" />
+        <el-table-column prop="checkTime1" label="点检时间" />
+        <el-table-column prop="deviceStatus1" label="设备状态" :formatter="formatDeviceStatus"/>
+        <el-table-column prop="checkRemark1" label="点检描述" />
+        <el-table-column prop="checkImgUrl1" label="点检照片" />
+      </el-table>
+
+      <el-tag>已点检设备</el-tag>
+      <el-table
+        :key="checkTableKey"
+        v-loading="listLoading"
+        :data="checkList"
+        border
+        style="width: 100%;"
+      >
+        <el-table-column width="50" label="序号">
+          <template slot-scope="scope">
+            <span>{{ scope.$index+(listQuery.page - 1) * listQuery.limit + 1 }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="deviceName" label="设备名"  />
+        <el-table-column prop="brandName" label="设备类型"  />
+        <el-table-column prop="deviceModel" label="设备位置" :formatter="formatAddress" />
+        <el-table-column prop="checkTime" label="点检时间" />
+        <el-table-column prop="deviceStatus" label="设备状态" :formatter="formatDeviceStatus"/>
+        <el-table-column prop="checkRemark" label="点检描述" />
+        <el-table-column prop="checkImgUrl" label="点检照片" >
+          <template slot-scope="scope">
+            <el-image
+              style="width: 100px; height: 100px"
+              :src= scope.row.checkImgUrl
+              :preview-src-list=[scope.row.checkImgUrl]>
+            </el-image>
+          </template>
+        </el-table-column>
+
+      </el-table>
+
+    </el-dialog>
+  </div>
+</template>
+<script>
+  import permission from '@/directive/permission/index.js' // 权限判断指令
+  import {
+    deviceCheckList,
+    deviceCheckDetailRestList,
+  } from '@/api/iguard/device/device'
+
+  import Pagination from '@/components/Pagination' // Secondary package based on el-pagination
+  import { deepClone } from '@/utils'
+
+  export default {
+    name: 'DeviceCheckInfo',
+    components: { Pagination },
+    directives: { permission },
+    data() {
+      return {
+        tableKey: 0,
+        unCheckTableKey:1,
+        checkTableKey:2,
+        list: null,
+        unCheckList:null,
+        checkList:null,
+        total: 0,
+        assignerList:null,
+        checkStatusList:[{"id":"0", "title":"未完成"},{"id":"1", "title":"已完成"}],
+        listLoading: false,
+        listQuery: {
+          page: 1,
+          limit: 10,
+          name: '',
+          checkTime:undefined,
+        },
+        dialogVisible: false
+      }
+    },
+    created() {
+      this.getList();
+    },
+
+    methods: {
+      async getList() {
+        this.listLoading = true;
+        try {
+          const res = await deviceCheckList(this.listQuery);
+          this.listLoading = false;
+          this.list = res.result.rows;
+          this.total = res.result.records
+        } catch (e) {
+          this.listLoading = false
+        }
+      },
+
+      formatCheckTime(row, column){
+        return row.startTime + '-' + row.endTime;
+      },
+
+      formatCheckStatus(row, column){
+        if (row.checkStatus === 1){
+          return "已完成";
+
+        }else {
+          return "未完成";
+        }
+      },
+
+      formatDeviceNum(row, column){
+        return row.normalDeviceNum + "/" + row.deviceNum;
+      },
+
+
+      formatAddress(row, column){
+        return row.buildingName + '-' + row.floorName;
+      },
+
+      formatDeviceStatus(row, column){
+        if (row.deviceStatus === 1){
+          return "正常";
+
+        }else {
+          return "异常";
+        }
+      },
+
+      async infoDetail(scope) {
+        this.dialogVisible = true;
+
+        this.listLoading = true;
+        try {
+
+          const unCheckData = {
+            "deviceCheckId":scope.row.id,
+            "checkStatus":"0",
+          };
+
+          const unCheckRes = await deviceCheckDetailRestList(unCheckData);
+          this.listLoading = false;
+          this.unCheckList = unCheckRes.result.rows;
+
+          const checkData = {
+            "deviceCheckId": scope.row.id,
+            "checkStatus": "1",
+          };
+
+          const checkRes = await deviceCheckDetailRestList(checkData);
+          this.listLoading = false;
+          this.checkList = checkRes.result.rows;
+        } catch (e) {
+          this.listLoading = false
+        }
+
+      },
+
+      handleSearch() {
+        this.getList()
+      },
+
+    }
+  }
+</script>

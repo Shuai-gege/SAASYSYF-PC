@@ -1,0 +1,7 @@
+# just a flag
+ENV = 'production'
+
+# base api
+VUE_APP_BASE_API = '/prod-api'
+VUE_APP_BASE_API_URL='http://127.0.0.1:8281'
+#VUE_APP_BASE_API_URL='http://114.118.7.172:8889'

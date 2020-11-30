@@ -1,0 +1,248 @@
+<template>
+  <div class="app-container">
+    <el-row :gutter="24">
+      <el-col :span="10">
+        <el-date-picker v-model="value" type="date" placeholder="选择开始日期"></el-date-picker>—
+        <el-date-picker v-model="value1" type="date" placeholder="选择结束日期"></el-date-picker>
+      </el-col>
+      <el-col :span="3">
+        <el-select v-model="value2" placeholder="分类">
+          <el-option
+            v-for="item in options"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          ></el-option>
+        </el-select>
+      </el-col>
+      <el-col :span="3">
+        <el-select v-model="value3" placeholder="品牌">
+          <el-option
+            v-for="item in options1"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          ></el-option>
+        </el-select>
+      </el-col>
+      <el-col :span="3">
+        <el-input v-model="input" placeholder="名称"></el-input>
+      </el-col>
+      <el-col :span="5">
+        <el-button type="primary">查询</el-button>
+        <el-button type="primary" @click="excel">导出</el-button>
+      </el-col>
+    </el-row>
+    <el-divider></el-divider>
+    <!-- 展示区域 -->
+    <div>
+      <el-row>
+        <el-col :span="23">
+          <el-table :data="tableData" style="width: 100%;" height="550" border>
+            <!-- <el-table-column width="50">
+              <template slot-scope="scope">
+                <span>{{ scope.$index+(listQuery.page - 1) * listQuery.limit + 1 }}</span>
+              </template>
+            </el-table-column>-->
+            <el-table-column prop="date" label="序号" />
+            <el-table-column prop="province" label="分类" />
+            <el-table-column prop="city" label="品牌" />
+            <el-table-column prop="name" label="物料名称" />
+            <el-table-column prop="zip" label="使用数量" />
+            <el-table-column prop="address" label="单位" />
+            <el-table-column label="操作">
+              <template slot-scope="scope">
+                <el-button type="text" size="small" @click="aa(scope)">详情</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <!--  <pagination
+            v-show="total>0"
+            :total="total"
+            :page.sync="listQuery.page"
+            :limit.sync="listQuery.limit"
+            @pagination="getList"
+          />-->
+        </el-col>
+      </el-row>
+    </div>
+    <!-- 物料详情 -->
+    <div>
+      <el-drawer title="物料使用详情" :visible.sync="drawer" size="50%">
+        <el-row>
+          <el-col :span="23">
+            <el-table :data="tableData" style="width: 100%;" height="550" border>
+              <!-- <el-table-column width="50">
+              <template slot-scope="scope">
+                <span>{{ scope.$index+(listQuery.page - 1) * listQuery.limit + 1 }}</span>
+              </template>
+              </el-table-column>-->
+              <el-table-column prop="date" label="序号" />
+              <el-table-column prop="province" label="分类" />
+              <el-table-column prop="city" label="品牌" />
+              <el-table-column prop="name" label="物料名称" />
+              <el-table-column prop="zip" label="使用数量" />
+              <el-table-column prop="address" label="单位" />
+              <el-table-column label="操作">
+                <template slot-scope="scope">
+                  <el-button type="text" size="small" @click="bb(scope)">详情</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <!-- 第二层物料详情 -->
+            <el-drawer
+              title="物料使用详情"
+              :append-to-body="true"
+              :before-close="handleClose"
+              :visible.sync="innerDrawer"
+            >
+              <el-row>
+                <el-col :span="23">
+                  <el-table :data="tableData" style="width: 100%;" height="550" border>
+                    <el-table-column prop="date" label="序号" />
+                    <el-table-column prop="province" label="分类" />
+                    <el-table-column prop="city" label="品牌" />
+                    <el-table-column prop="name" label="物料名称" />
+                    <el-table-column prop="zip" label="使用数量" />
+                    <el-table-column prop="address" label="单位" />
+                  </el-table>
+                </el-col>
+              </el-row>
+            </el-drawer>
+          </el-col>
+        </el-row>
+      </el-drawer>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      value: '', //时间选择
+      value1: '', //时间选择
+      drawer: false, //物料详情
+      innerDrawer: false, //物料详情
+      options: [
+        //分类
+        {
+          value: '选项1',
+          label: '黄金糕'
+        }
+      ],
+      value2: '',
+      input: '',
+      options1: [
+        //品牌
+        {
+          value: '选项1',
+          label: '黄金糕'
+        }
+      ],
+      value3: '',
+      tableData: [
+        {
+          date: '2016-05-03',
+          name: '王小虎',
+          province: '上海',
+          city: '普陀区',
+          address: '上海市普陀区金沙江路 1518 弄',
+          zip: 200333
+        },
+        {
+          date: '2016-05-02',
+          name: '王小虎',
+          province: '上海',
+          city: '普陀区',
+          address: '上海市普陀区金沙江路 1518 弄',
+          zip: 200333
+        },
+        {
+          date: '2016-05-04',
+          name: '王小虎',
+          province: '上海',
+          city: '普陀区',
+          address: '上海市普陀区金沙江路 1518 弄',
+          zip: 200333
+        },
+        {
+          date: '2016-05-01',
+          name: '王小虎',
+          province: '上海',
+          city: '普陀区',
+          address: '上海市普陀区金沙江路 1518 弄',
+          zip: 200333
+        },
+        {
+          date: '2016-05-08',
+          name: '王小虎',
+          province: '上海',
+          city: '普陀区',
+          address: '上海市普陀区金沙江路 1518 弄',
+          zip: 200333
+        },
+        {
+          date: '2016-05-06',
+          name: '王小虎',
+          province: '上海',
+          city: '普陀区',
+          address: '上海市普陀区金沙江路 1518 弄',
+          zip: 200333
+        },
+        {
+          date: '2016-05-07',
+          name: '王小虎',
+          province: '上海',
+          city: '普陀区',
+          address: '上海市普陀区金沙江路 1518 弄',
+          zip: 200333
+        }
+      ]
+    }
+  },
+  mounted() {},
+  methods: {
+    aa(value) {
+      console.log(value)
+      this.drawer = true
+    },
+    // 物料使用在那个任务里
+    bb(value) {
+      console.log(value)
+      this.innerDrawer = true
+    },
+    // 物料详情关闭前确认
+    handleClose(done) {
+      this.$confirm('确定关闭吗')
+        .then(_ => {
+          done()
+        })
+        .catch(_ => {})
+    },
+    // 导出表格
+    excel(res) {
+      require.ensure([], () => {
+        const {
+          export_json_to_excel
+        } = require('../../../api/iguard/excel/Export2Excel')
+        const tHeader = ['名字', '城市', '区/县/村', '详细地址']
+        const filterVal = ['name', 'province', 'city', 'address']
+        const list = this.tableData
+        const data = this.formatJson(filterVal, list)
+        export_json_to_excel(tHeader, data, '物料报表')
+      })
+    },
+    formatJson(filterVal, jsonData) {
+      return jsonData.map(v => filterVal.map(j => v[j]))
+    }
+  }
+}
+</script>
+<style lang='less' scoped>
+.app-container {
+  .el-col-10 {
+    width: 39%;
+  }
+}
+</style>

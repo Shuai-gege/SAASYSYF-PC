@@ -1,0 +1,337 @@
+<template>
+  <div class="app-container">
+    <!-- 查询板块 -->
+    <el-row :gutter="24">
+      <el-col :span="8">
+        <el-date-picker
+          v-model="value"
+          type="daterange"
+          align="right"
+          unlink-panels
+          range-separator="~"
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
+          :picker-options="pickerOptions"
+          @change="time"
+        ></el-date-picker>
+      </el-col>
+      <el-col :span="3">
+        <el-select v-model="value2" placeholder="企业" @change="company">
+          <el-option
+            v-for="item in options"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          ></el-option>
+        </el-select>
+      </el-col>
+      <el-col :span="3">
+        <el-select v-model="value3" placeholder="部门" @change="dept">
+          <el-option
+            v-for="item in options1"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          ></el-option>
+        </el-select>
+      </el-col>
+      <el-col :span="3">
+        <el-input v-model="input" placeholder="姓名"></el-input>
+      </el-col>
+      <el-col :span="5">
+        <el-button type="primary" @click="query">查询</el-button>
+        <el-button type="primary" @click="excel">导出</el-button>
+      </el-col>
+    </el-row>
+    <el-divider></el-divider>
+    <!-- 展示面板 -->
+    <div>
+      <el-row>
+        <el-col :span="23">
+          <el-table :data="tableData" style="width: 100%;" height="550" border>
+            <el-table-column width="50" label="序号">
+              <template slot-scope="scope">
+                <span>{{ scope.$index+(listQuery.page - 1) * listQuery.limit + 1 }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="userName" label="姓名" />
+            <el-table-column prop="reportEvents" label="报事数" sortable>
+              <template slot-scope="scope">
+                <el-button type="text" size="small" @click="order(scope)">{{scope.row.reportEvents}}</el-button>
+              </template>
+            </el-table-column>
+            <el-table-column prop="completeEventsTotal" label="完工数(总)" sortable>
+              <template slot-scope="scope">
+                <el-button
+                  type="text"
+                  size="small"
+                  @click="order(scope)"
+                >{{scope.row.completeEventsTotal}}</el-button>
+              </template>
+            </el-table-column>
+            <el-table-column prop="completeEventSelf" label="完工数(自行处理)" sortable>
+              <template slot-scope="scope">
+                <el-button
+                  type="text"
+                  size="small"
+                  @click="order(scope)"
+                >{{scope.row.completeEventSelf}}</el-button>
+              </template>
+            </el-table-column>
+            <el-table-column prop="completeEventsReport" label="完工数(报事验收)" sortable>
+              <template slot-scope="scope">
+                <el-button
+                  type="text"
+                  size="small"
+                  @click="order(scope)"
+                >{{scope.row.completeEventsReport}}</el-button>
+              </template>
+            </el-table-column>
+            <el-table-column prop="completeEventsRC" label="完工数(日常分配)" sortable>
+              <template slot-scope="scope">
+                <el-button
+                  type="text"
+                  size="small"
+                  @click="order(scope)"
+                >{{scope.row.completeEventsRC}}</el-button>
+              </template>
+            </el-table-column>
+            <el-table-column prop="allocationAndChecks" label="分配&验收" sortable>
+              <template slot-scope="scope">
+                <el-button
+                  type="text"
+                  size="small"
+                  @click="order(scope)"
+                >{{scope.row.allocationAndChecks}}</el-button>
+              </template>
+            </el-table-column>
+            <el-table-column prop="invalidEvents" label="无效上报处理数" sortable>
+              <template slot-scope="scope">
+                <el-button
+                  type="text"
+                  size="small"
+                  @click="order(scope)"
+                >{{scope.row.invalidEvents}}</el-button>
+              </template>
+            </el-table-column>
+            <el-table-column prop="scoreTotal" label="评分总值" />
+            <el-table-column prop="scoreAvg" label="评分均值" />
+          </el-table>
+          <pagination
+            v-show="total>0"
+            :total="total"
+            :page.sync="listQuery.page"
+            :limit.sync="listQuery.limit"
+            @pagination="getList"
+          />
+        </el-col>
+      </el-row>
+    </div>
+  </div>
+</template>
+
+<script>
+import {
+  getPCReportEventByPage,
+  subCompanyList,
+  subDeptByDeptId
+} from '@/api/iguard/incident'
+import Pagination from '@/components/Pagination' // Secondary
+const entityVO = {
+  uid: localStorage.getItem('uid'),
+  startTime: '',
+  endTime: '',
+  companyId: '',
+  deptId: '',
+  userName: '',
+  page: 1,
+  limit: 10
+}
+export default {
+  components: { Pagination },
+  data() {
+    return {
+      value: '',
+      pickerOptions: {
+        shortcuts: [
+          {
+            text: '最近一周',
+            onClick(picker) {
+              const end = new Date()
+              const start = new Date()
+              start.setTime(start.getTime() - 3600 * 1000 * 24 * 7)
+              picker.$emit('pick', [start, end])
+            }
+          },
+          {
+            text: '最近一个月',
+            onClick(picker) {
+              const end = new Date()
+              const start = new Date()
+              start.setTime(start.getTime() - 3600 * 1000 * 24 * 30)
+              picker.$emit('pick', [start, end])
+            }
+          },
+          {
+            text: '最近三个月',
+            onClick(picker) {
+              const end = new Date()
+              const start = new Date()
+              start.setTime(start.getTime() - 3600 * 1000 * 24 * 90)
+              picker.$emit('pick', [start, end])
+            }
+          }
+        ]
+      },
+      value2: '',
+      value3: '',
+      total: 0, //数据总条数
+      deptId: '', //公司ID
+      options: [], //查询所有公司
+      options1: [], //指定公司下所有部门
+      input: '',
+      tableData: [],
+      listQuery: Object.assign({}, entityVO)
+    }
+  },
+  mounted() {
+    this.getList()
+    this.companyList()
+  },
+  methods: {
+    //转换时间不够10前面补0
+    p(s) {
+      return s < 10 ? '0' + s : s
+    },
+    // 时间
+    time(value) {
+      // 开始日期
+      let startTime = new Date(value[0])
+      let YY = startTime.getFullYear()
+      let MM = this.p(startTime.getMonth() + 1)
+      let DD = this.p(startTime.getDate())
+      this.listQuery.startTime = YY + '-' + MM + '-' + DD
+      // 结束日期
+      let endTime = new Date(value[1])
+      let YY1 = endTime.getFullYear()
+      let MM1 = this.p(endTime.getMonth() + 1)
+      let DD1 = this.p(endTime.getDate())
+      this.listQuery.endTime = YY1 + '-' + MM1 + '-' + DD1
+      console.log(this.listQuery)
+    },
+    // 详情页面
+    order(obj) {
+      // this.$router.push('incidentOrder')
+      console.log(obj)
+    },
+    // 事件List
+    async getList() {
+      try {
+        const res = await getPCReportEventByPage(this.listQuery)
+        console.log(res)
+        this.total = res.result.records
+        this.tableData = res.result.rows
+      } catch (e) {
+        console.log(e)
+      }
+    },
+    // 查询所有公司
+    async companyList() {
+      try {
+        const res = await subCompanyList()
+        console.log(res)
+        this.options = res.result
+        this.options.forEach(item => {
+          this.$set(item, 'label', item.name)
+          this.$set(item, 'value', item.id)
+        })
+      } catch (e) {
+        console.log(e)
+      }
+    },
+    // 点击选择公司获取id
+    company(value) {
+      console.log(value)
+      this.deptId = value
+      this.listQuery.companyId = value
+      this.deptid()
+    },
+    // 根据公司获取下属部门
+    async deptid() {
+      try {
+        const res = await subDeptByDeptId(this.deptId)
+        this.options1 = res.result
+        this.options1.forEach(item => {
+          this.$set(item, 'label', item.name)
+          this.$set(item, 'value', item.id)
+        })
+      } catch (e) {
+        console.log(e)
+      }
+    },
+    // 点击选择部门获取id
+    dept(value) {
+      console.log(value)
+      this.listQuery.deptId = value
+    },
+    // 查询
+    query() {
+      this.listQuery.userName = this.input
+      this.getList()
+      console.log(this.listQuery)
+    },
+    // 导出表格
+    excel(res) {
+      this.$message({
+        message: '数据量较大，请耐心等待！~',
+        type: 'warning'
+      })
+      this.listQuery.limit = 100000
+      this.getList()
+      setTimeout(() => {
+        require.ensure([], () => {
+          const {
+            export_json_to_excel
+          } = require('../../../api/iguard/excel/Export2Excel')
+          const tHeader = [
+            '姓名',
+            '报事数',
+            '完工数(总)',
+            '完工数(自行处理)',
+            '完工数(报事验收)',
+            '完工数(日常分配)',
+            '分配&验收',
+            '无效上报处理数',
+            '评分总值',
+            '评分均值'
+          ]
+          const filterVal = [
+            'userName',
+            'reportEvents',
+            'completeEventsTotal',
+            'completeEventSelf',
+            'completeEventsReport',
+            'completeEventsRC',
+            'allocationAndChecks',
+            'invalidEvents',
+            'scoreTotal',
+            'scoreAvg'
+          ]
+          const list = this.tableData
+          const data = this.formatJson(filterVal, list)
+          export_json_to_excel(tHeader, data, '物料报表')
+        })
+      }, 10000)
+    },
+    formatJson(filterVal, jsonData) {
+      return jsonData.map(v => filterVal.map(j => v[j]))
+    }
+  }
+}
+</script>
+<style lang='less' scoped>
+.box {
+  .con {
+  }
+}
+</style>
