@@ -144,7 +144,6 @@
         <el-button type="primary" @click="confirmDepartment">确定</el-button>
       </div>
     </el-dialog>
-
     <el-dialog :visible.sync="dialogVisibleEdit" title="编辑">
       <el-form ref="form" :model="company" :rules="rules" label-width="90px" label-position="right">
         <el-form-item label="类型" prop="department.deptCompany" style="width:100%">
@@ -170,7 +169,23 @@
             placeholder="选择上级部门"
           />
         </el-form-item>
+        <!-- <el-form-item label="管理账号" prop="user.name" v-if="isCompany">
+          <el-input v-model="company.user.name" placeholder="请输入手机号" />
+        </el-form-item>
 
+        <el-form-item label="密码" prop="user.password" v-if="isCompany">
+          <el-input v-model="company.user.password" placeholder="请输入密码" show-password />
+        </el-form-item>
+
+        <el-form-item label="真实姓名" prop="user.vserName" v-if="isCompany">
+          <el-input v-model="company.user.vserName" placeholder="请输入姓名" />
+        </el-form-item>
+
+        <el-form-item label="角色" v-if="isCompany" prop="user.roleIds">
+          <el-select v-model="company.user.roleIds" multiple placeholder="请选择" style="width:100%">
+            <el-option v-for="item in roles" :key="item.id" :label="item.name" :value="item.id" />
+          </el-select>
+        </el-form-item>-->
         <el-form-item label="排序">
           <el-input v-model="company.department.sorts" placeholder="排序" />
         </el-form-item>
@@ -249,7 +264,8 @@ import {
   deleteDpartment,
   addCompany,
   addTopCompany,
-  companySubDeptList
+  companySubDeptList,
+  deptSubDept
 } from '@/api/permission/department'
 import { roles } from '@/api/permission/role'
 import { deepClone } from '@/utils'
@@ -279,9 +295,10 @@ const defaultCompany = {
     parentName: '',
     levels: undefined,
     deleted: 0,
-    companyId: localStorage.getItem('deptid'),
+    companyId: localStorage.getItem('companyId'),
     deptCompany: 1,
     vipStatus: '',
+    sorts: '',
     vipStatusArr: [],
     validDate: ''
   },
@@ -369,9 +386,9 @@ export default {
   created() {
     // this.getDepartments();
     this.getRoles()
-    this.getSubDepartments()
+    this.checkBuMen()
+    this.getCheckList1()
     this.getCompanySubDepartments()
-    this.getCheckList()
     if (localStorage.getItem('uid') == 1) {
       this.flag = true
       this.company.department.deptCompany = 2
@@ -380,6 +397,19 @@ export default {
     }
   },
   methods: {
+    async getCheckList1() {
+      try {
+        const res = await getList()
+        console.log(res)
+        if (res.code == 20000) {
+          this.company.department.vipStatusArr = res.result
+          this.company.department.deptCompany = data.dept_company
+          this.company.department.parentId = data.parent_id
+        }
+      } catch (err) {
+        console.log(err)
+      }
+    },
     async getCheckList(data) {
       try {
         const res = await getList()
@@ -390,6 +420,18 @@ export default {
           this.company.department.deptCompany = data.dept_company
           this.company.department.parentId = data.parent_id
         }
+      } catch (err) {
+        console.log(err)
+      }
+    },
+    // 查询部门
+    async checkBuMen() {
+      try {
+        const res = await deptSubDept()
+        const result = res.result
+        this.diGuiTree(result)
+        // this.departments = [{ id: 0, name: '部门树', childrens: result }]
+        this.departments = result
       } catch (err) {
         console.log(err)
       }
@@ -410,11 +452,16 @@ export default {
       return s < 10 ? '0' + s : s
     },
     async getSubDepartments() {
-      const res = await subDepartments()
-      const result = res.result
-      this.diGuiTree(result)
-      // this.departments = [{ id: 0, name: '部门树', childrens: result }]
-      this.departments = result
+      try {
+        const res = await subDepartments()
+        console.log(res)
+        const result = res.result
+        this.diGuiTree(result)
+        // this.departments = [{ id: 0, name: '部门树', childrens: result }]
+        this.departments = result
+      } catch (err) {
+        console.log(err)
+      }
     },
 
     async getCompanySubDepartments() {
@@ -428,15 +475,19 @@ export default {
     async getRoles() {
       const res = await roles()
       this.roles = res.result
+      this.roles.splice(0, 1)
     },
 
     getDeptCompany() {
       if (localStorage.getItem('uid') != 1) {
-        if (2 === this.company.department.deptCompany) {
+        this.$message('普通管理员只能添加部门')
+        this.company.department.deptCompany = 1
+        if (this.company.department.deptCompany === 2) {
           this.isCompany = true
           this.isDepartment = false
           this.dialogType = 'topCompanyAdd'
         } else {
+          this.dialogType = 'new'
           this.isCompany = false
           this.isDepartment = true
         }
@@ -480,12 +531,15 @@ export default {
     },
 
     handleCreate(data) {
-      this.dialogType = 'new'
+      if (localStorage.getItem('uid') == '1') {
+        this.dialogType = 'topCompanyAdd'
+      } else {
+        this.dialogType = 'new'
+      }
       this.dialogVisible = true
       this.company.department = Object.assign({}, defaultCompany.department)
       console.log(defaultCompany.department)
       this.company.user = Object.assign({}, defaultCompany.user)
-
       // if (data != null) {
       //   this.department.parentId = data.id
       //   this.department.parentName = data.name
@@ -501,69 +555,158 @@ export default {
     },
 
     async handleEdit(node, data) {
-      this.dialogType = 'edit'
-      this.dialogVisibleEdit = true
-      // this.company.department = deepClone(data)
-      // this.company.department.deptCompany = data.dept_company
-      // this.company.department.parentId = data.parent_id
-      // this.company.department.name = data.name
-      // this.company.department.validDate = data.validDate
-      // this.company.department.vipStatus = data.vipStatus
-      this.getCheckList(data)
-      // const parent = node.parent.data
-      // this.department.parentId = parent.id
-      // this.department.parentName = parent.name
-      if (2 === this.company.department.deptCompany) {
-        this.isCompany = true
-        this.isDepartment = false
+      if (localStorage.getItem('uid') == '1') {
+        this.dialogType = 'edit'
+        this.dialogVisibleEdit = true
+        // this.company.department = deepClone(data)
+        // this.company.department.deptCompany = data.dept_company
+        // this.company.department.parentId = data.parent_id
+        // this.company.department.name = data.name
+        // this.company.department.validDate = data.validDate
+        // this.company.department.vipStatus = data.vipStatus
+        this.getCheckList(data)
+        // const parent = node.parent.data
+        // this.department.parentId = parent.id
+        // this.department.parentName = parent.name
+
+        if (2 === this.company.department.deptCompany) {
+          this.isCompany = true
+          this.isDepartment = false
+        } else {
+          this.isCompany = false
+          this.isDepartment = true
+        }
       } else {
-        this.isCompany = false
-        this.isDepartment = true
+        if (data.parent_id == '0') {
+          this.$message({
+            showClose: true,
+            message: '公司禁止编辑',
+            type: 'warning'
+          })
+        } else {
+          this.dialogType = 'edit'
+          this.dialogVisibleEdit = true
+          // this.company.department = deepClone(data)
+          // this.company.department.deptCompany = data.dept_company
+          // this.company.department.parentId = data.parent_id
+          // this.company.department.name = data.name
+          // this.company.department.validDate = data.validDate
+          // this.company.department.vipStatus = data.vipStatus
+          this.getCheckList(data)
+          // const parent = node.parent.data
+          // this.department.parentId = parent.id
+          // this.department.parentName = parent.name
+
+          if (2 === this.company.department.deptCompany) {
+            this.isCompany = true
+            this.isDepartment = false
+          } else {
+            this.isCompany = false
+            this.isDepartment = true
+          }
+        }
       }
     },
     async confirmDepartment() {
       const isEdit = this.dialogType === 'edit'
+      // 编辑
       if (this.dialogType === 'edit') {
+        this.dialogVisibleEdit = false
         await updateDpartment(this.company.department)
+        this.$message({
+          showClose: true,
+          message: '编辑成功',
+          type: 'success'
+        })
       } else if (this.dialogType === 'new') {
+        // 新增部门
         if (this.company.user.password.length < 1) {
           this.company.user.password = this.company.user.name
         }
-        await addCompany(this.company)
-        console.log('我是新增部门')
-      } else if (this.dialogType === 'topCompanyAdd') {
-        console.log('我是新增企业')
-        await addTopCompany(this.company)
-      }
-      this.dialogVisible = false
-      this.dialogTopCompanyAdd = false
-      this.dialogVisibleEdit = false
-
-      this.$message({
-        showClose: true,
-        message: '保存成功',
-        type: 'success'
-      })
-      this.getSubDepartments()
-    },
-    handleDelete(data) {
-      this.$confirm('确认删除?', '警告', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      })
-        .then(async () => {
-          await deleteDpartment(data.id)
+        if (this.company.department.name == '') {
+          this.$message({
+            message: '请填写部门名称。',
+            type: 'warning'
+          })
+        } else if (this.company.department.parentId == undefined) {
+          this.$message({
+            message: '请选择上级部门。',
+            type: 'warning'
+          })
+        } else if (
+          this.company.department.sorts == '' ||
+          this.company.department.sorts < '1'
+        ) {
+          this.$message({
+            message: '请填写排序,并且不能小于0',
+            type: 'warning'
+          })
+        } else {
+          await addCompany(this.company)
+          this.dialogVisible = false
           this.$message({
             showClose: true,
-            message: '删除成功',
+            message: '保存成功',
             type: 'success'
           })
-          this.getSubDepartments()
+        }
+      } else if (this.dialogType === 'topCompanyAdd') {
+        // 新增企业
+        console.log('我是新增企业')
+        await addTopCompany(this.company)
+        this.dialogVisible = false
+      }
+
+      this.dialogTopCompanyAdd = false
+
+      this.checkBuMen()
+    },
+    handleDelete(data) {
+      if (localStorage.getItem('uid') == '1') {
+        this.$confirm('确认删除?', '警告', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
         })
-        .catch(err => {
-          console.error(err)
-        })
+          .then(async () => {
+            await deleteDpartment(data.id)
+            this.$message({
+              showClose: true,
+              message: '删除成功',
+              type: 'success'
+            })
+            this.checkBuMen()
+          })
+          .catch(err => {
+            console.error(err)
+          })
+      } else {
+        if (data.parent_id == '0') {
+          this.$message({
+            showClose: true,
+            message: '您没权限删除公司，请联系平台客服。',
+            type: 'warning'
+          })
+        } else {
+          this.$confirm('确认删除?', '警告', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          })
+            .then(async () => {
+              await deleteDpartment(data.id)
+              this.$message({
+                showClose: true,
+                message: '删除成功',
+                type: 'success'
+              })
+              this.checkBuMen()
+            })
+            .catch(err => {
+              console.error(err)
+            })
+        }
+      }
     }
   }
 }

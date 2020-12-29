@@ -74,6 +74,7 @@ const actions = {
                 localStorage.setItem("vipStatus", response.result.vipStatus)
                 localStorage.setItem("deptName", response.result.deptName)
                 localStorage.setItem("deptid", response.result.deptid)
+                localStorage.setItem("companyId", response.result.company_id)
                 localStorage.setItem('routerList', JSON.stringify(response.result.menus))
                 if (!response) {
                     reject('Verification failed, please Login again.')

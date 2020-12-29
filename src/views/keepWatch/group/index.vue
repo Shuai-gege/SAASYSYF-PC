@@ -262,7 +262,7 @@ export default {
     handleClose(done) {
       this.$confirm('确认关闭？关闭后页面将刷新')
         .then(_ => {
-          // history.go(0)
+          history.go(0)
           done()
         })
         .catch(_ => {})
@@ -387,7 +387,7 @@ export default {
       try {
         const res = await add(this.newObj)
         console.log(res)
-        // history.go(0)
+        history.go(0)
       } catch (e) {
         console.log(e)
       }
@@ -484,7 +484,7 @@ export default {
             this.editObj.groupName = this.form1.groupName
             try {
               const res = await editPatrolCheckGroup(this.editObj)
-              // history.go(0)
+              history.go(0)
               console.log(res)
             } catch (e) {
               console.log(e)

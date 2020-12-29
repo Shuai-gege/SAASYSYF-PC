@@ -146,7 +146,16 @@ export default {
     }
     return {
       dialogVisible: false,
-      listQuery: { deptid: localStorage.getItem('deptid') },
+      listQuery: {
+        companyId: localStorage.getItem('companyId'),
+        leaveWork: '',
+        limit: 50000,
+        mobile: '',
+        name: '',
+        page: 1,
+        state: 1,
+        vserName: ''
+      },
       value: '',
       options: [],
       activeTab: '修改密码',
@@ -202,7 +211,11 @@ export default {
       try {
         const res = await userList(this.listQuery)
         console.log(res)
-        this.options = res.result.rows
+        res.result.rows.forEach(item => {
+          if (item.uid != localStorage.getItem('uid')) {
+            this.options.push(item)
+          }
+        })
       } catch (e) {
         this.listLoading = false
       }
@@ -221,6 +234,11 @@ export default {
       try {
         const res = await adminTransfer(uid, toUserId, openId)
         console.log(res)
+        if (res.code == 20000) {
+          history.go(0)
+        } else {
+          this.$message(res.msg)
+        }
       } catch (err) {
         console.log(err)
       }

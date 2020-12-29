@@ -57,7 +57,7 @@ export function addCompany(data) {
 }
 
 export function addTopCompany(data) {
-    return request2({
+    return request({
         url: '/rest/department/topCompanyAdd',
         method: 'post',
         data
@@ -78,5 +78,11 @@ export function deleteDpartment(id) {
         params: {
             id
         }
+    })
+}
+export function deptSubDept() {
+    return request2({
+        url: '/rest/department/deptSubDept',
+        method: 'get',
     })
 }

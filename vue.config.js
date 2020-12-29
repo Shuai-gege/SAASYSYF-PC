@@ -27,7 +27,7 @@ module.exports = {
      */
     publicPath: './',
     outputDir: 'iguard-vue-pc',
-    assetsDir: 'static',
+    assetsDir: 'static', //用于放置生成的静态资源 (js、css、img、fonts) 的；（项目打包之后，静态资源会放在这个文件夹下)
     lintOnSave: false,
     productionSourceMap: false,
     devServer: {
@@ -42,6 +42,7 @@ module.exports = {
         // provide the app's title in webpack's name field, so that
         // it can be accessed in index.html to inject the correct title.
         name: name,
+        devtool: 'source-map',
         resolve: {
             alias: {
                 '@': resolve('src')

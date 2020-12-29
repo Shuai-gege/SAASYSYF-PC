@@ -216,34 +216,41 @@ export default {
         this.saas.checked = false
       }
       // 点检设备数
-      if (obj.check_device_count != '0') {
+      if (obj.check_device_count != '0' && obj.check_device_count != null) {
+        console.log('走这里了？')
         this.saas.radio2 = 2
         this.saas.input2 = obj.check_device_count
       } else {
         this.saas.radio2 = 1
       }
       // 点检任务数
-      if (obj.check_task_count != '0') {
+      if (obj.check_task_count != '0' && obj.check_task_count != null) {
         this.saas.radio1 = 2
         this.saas.input1 = obj.check_task_count
       } else {
         this.saas.radio1 = 1
       }
       // 进行中的额报事数
-      if (obj.report_count != '0') {
+      if (obj.report_count != '0' && obj.report_count != null) {
         this.saas.radio = 2
         this.saas.input = obj.report_count
       } else {
         this.saas.radio = 1
       }
+
       // 巡更点检组，1巡更，2点检
-      if ((obj.patrol_check = '1')) {
+      if (obj.patrol_check == '1') {
         this.saas.checked1 = true
-      } else if ((obj.patrol_check = '2')) {
+        this.saas.checked2 = false
+      } else if (obj.patrol_check == '2') {
+        this.saas.checked1 = false
         this.saas.checked2 = true
-      } else if ((obj.patrol_check = '1,2')) {
+      } else if (obj.patrol_check == '1,2' || obj.patrol_check == '2,1') {
         this.saas.checked1 = true
         this.saas.checked2 = true
+      } else {
+        this.saas.checked1 = false
+        this.saas.checked2 = false
       }
       this.saas.id = obj.id
       this.treeArr = obj.level_permission.split(',')
@@ -310,6 +317,7 @@ export default {
       console.log(val)
       if (val == 1) {
         this.listQuery.report_count = '0'
+        this.saas.input = ''
       } else {
         if (this.saas.input != '') {
           this.listQuery.report_count = this.saas.input
@@ -324,6 +332,7 @@ export default {
       console.log(val)
       if (val == 1) {
         this.listQuery.check_task_count = '0'
+        this.saas.input1 = ''
       } else {
         if (this.saas.input1 != '') {
           this.listQuery.check_task_count = this.saas.input1
@@ -338,6 +347,7 @@ export default {
       console.log(val)
       if (val == 1) {
         this.listQuery.check_device_count = '0'
+        this.saas.input2 = ''
       } else {
         if (this.saas.input2 != '') {
           this.listQuery.check_device_count = this.saas.input2
@@ -355,7 +365,14 @@ export default {
           this.arr.splice(this.arr.indexOf('1'), 1)
         }
       }
-      this.listQuery.patrol_check = this.arr.join(',')
+      let newArr = []
+      this.arr.map(val => {
+        if (val != '' && val != null && val != undefined) {
+          newArr.push(val)
+        }
+      })
+      this.listQuery.patrol_check = newArr.join(',')
+      console.log(this.listQuery.patrol_check)
     },
     fu1(val) {
       if (val == true) {
@@ -365,7 +382,14 @@ export default {
           this.arr.splice(this.arr.indexOf('2'), 1)
         }
       }
-      this.listQuery.patrol_check = this.arr.join(',')
+      let newArr = []
+      this.arr.map(val => {
+        if (val != '' && val != null && val != undefined) {
+          newArr.push(val)
+        }
+      })
+      this.listQuery.patrol_check = newArr.join(',')
+      console.log(this.listQuery.patrol_check)
     },
     reg(val) {
       if (val == false) {
@@ -457,6 +481,7 @@ export default {
             type: 'warning'
           })
         } else {
+          console.log(this.listQuery)
           this.add(this.listQuery)
         }
       }

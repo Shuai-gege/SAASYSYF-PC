@@ -14,7 +14,17 @@ export function getInfo() {
         method: 'get'
     })
 }
-
+// 离职
+export function personTransfer(fromUid, toUid) {
+    return request2({
+        url: '/rest/appUser/personTransfer',
+        method: 'get',
+        params: {
+            fromUid,
+            toUid
+        }
+    })
+}
 export function logout() {
     return request2({
         url: '/rest/user/logout',

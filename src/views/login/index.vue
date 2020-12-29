@@ -99,6 +99,7 @@
       <div class="reg">
         <div class="title">扫码免费注册</div>
         <img src="./loginImg/reg.jpg" alt />
+        
       </div>
       <!--  -->
       <div style="position:relative">
@@ -212,6 +213,7 @@ export default {
       }
     }
     return {
+      
       loginForm: {
         username: 'admin',
         password: '123456',
@@ -289,6 +291,7 @@ export default {
     // window.removeEventListener('storage', this.afterQRScan)
   },
   methods: {
+    
     async getCheckList() {
       try {
         const res = await getList()

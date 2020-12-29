@@ -35,7 +35,7 @@
             type="primary"
             icon="el-icon-search"
             @click="handleSearch"
-          >查找</el-button>
+          >查看在职人员</el-button>
           <el-button
             v-permission="['/rest/user/add']"
             class="filter-item"
@@ -45,6 +45,7 @@
           >
             <i class="el-icon-plus" />新增
           </el-button>
+          <el-button type="primary" icon="el-icon-search" @click="checkLiZhi">查看离职人员</el-button>
         </el-col>
       </el-row>
     </div>
@@ -96,7 +97,7 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="禁用/启用">
+            <el-table-column label="禁用/启用" v-if="flag">
               <template slot-scope="scope">
                 <el-switch
                   v-model="scope.row.state"
@@ -107,7 +108,7 @@
                 />
               </template>
             </el-table-column>
-            <el-table-column label="操作">
+            <el-table-column label="操作" v-if="flag">
               <template slot-scope="scope">
                 <el-button
                   v-permission="['/rest/user/update']"
@@ -115,6 +116,7 @@
                   size="small"
                   @click="handleEdit(scope)"
                 >编辑</el-button>
+                <el-button type="text" size="small" @click="dimission(scope)">离职</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -127,6 +129,30 @@
           />
         </el-col>
       </el-row>
+      <!-- 离职弹窗 -->
+      <!-- 离职弹窗 -->
+      <div>
+        <el-dialog title="选择工作转交对象" :visible.sync="liZhi" width="30%">
+          <el-select
+            v-model="value11"
+            filterable
+            placeholder="请选工作转交人员"
+            style="width:100%;"
+            @change="personDimission"
+          >
+            <el-option
+              v-for="item in options"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            ></el-option>
+          </el-select>
+          <span slot="footer" class="dialog-footer">
+            <el-button @click="liZhi = false">取 消</el-button>
+            <el-button type="primary" @click="transfer">确 定</el-button>
+          </span>
+        </el-dialog>
+      </div>
     </div>
     <el-dialog :visible.sync="dialogVisible" :title="dialogType==='edit'?'编辑':'新增'">
       <el-form ref="form" :model="user" :rules="rules" label-width="80px" label-position="right">
@@ -226,13 +252,16 @@ import {
   addUser,
   getUserByPhone,
   updateUser,
-  updateState
+  updateState,
+  personTransfer
 } from '@/api/permission/user'
+import { getCompanyAllUser } from '@/api/iguard/taskGuanLi'
 import {
   subDepartments,
   subDeptByDeptId,
   subCompanyList,
-  companySubDeptList
+  deptSubDept
+  // companySubDeptList
 } from '@/api/permission/department'
 import { jobs } from '@/api/permission/job'
 import { roles } from '@/api/permission/role'
@@ -276,6 +305,8 @@ export default {
       imgList: [],
       face_img: '', //人脸图片，以上都是人脸识别图片变量
       tableKey: 0,
+      options: [],
+      value11: '',
       list: null,
       total: 0,
       listLoading: false,
@@ -286,7 +317,7 @@ export default {
         name: '',
         mobile: '',
         deptid: undefined,
-        state: undefined
+        state: 1
       },
       searchDeptName: '',
       stateOptions: [
@@ -304,8 +335,9 @@ export default {
       roles: [],
       activeName: 'first',
       dialogVisible: false,
+      liZhi: false,
       dialogType: 'new',
-
+      flag: true,
       rules: {
         name: [
           { required: true, message: '请输入正确的账号', trigger: 'blur' },
@@ -321,6 +353,10 @@ export default {
         ],
         deptid: [{ required: true, message: '请选择部门', trigger: 'change' }],
         state: [{ required: true, message: '请选择状态', trigger: 'change' }]
+      },
+      person: {
+        fromUid: '',
+        toUid: ''
       }
     }
   },
@@ -332,12 +368,38 @@ export default {
   created() {},
   mounted() {
     this.getList()
-    this.getSubDepartments()
+    // this.getSubDepartments()
+    this.getBuMen()
     // this.getSubCompanies()
     this.getJobs()
     this.getRoles()
+    this.getAllUser()
   },
   methods: {
+    // 离职
+    async transfer() {
+      try {
+        const res = await personTransfer(this.person.fromUid, this.person.toUid)
+        console.log(res)
+        if (res.code == 20000) {
+          this.$message({
+            message: res.msg,
+            type: 'success'
+          })
+          this.liZhi = false
+          this.value11 = ''
+          this.getList()
+        } else {
+          this.$message.error('系统错误')
+        }
+      } catch (err) {
+        console.log(err)
+      }
+    },
+    personDimission(val) {
+      console.log(val)
+      this.person.toUid = val
+    },
     userId(e) {
       console.log(this.user.name)
       this.repettionTel(this.user.name)
@@ -361,6 +423,25 @@ export default {
     handleRemove(file, fileList) {
       console.log(file, fileList)
     },
+    async getAllUser() {
+      try {
+        const res = await getCompanyAllUser(localStorage.getItem('uid'))
+        res.result.forEach(item => {
+          if (
+            item.leaveWork == '0' &&
+            item.uid == localStorage.getItem('uid')
+          ) {
+            this.options.push(item)
+          }
+        })
+        this.options.forEach(item => {
+          this.$set(item, 'value', item.uid)
+          this.$set(item, 'label', item.vserName)
+        })
+      } catch (err) {
+        console.log(err)
+      }
+    },
     // 上传头像
     handlePictureCardPreview(response, file, fileList) {
       this.user.face_img = this.baseUrl + '/rest/user/img/' + response.result
@@ -381,6 +462,14 @@ export default {
       }
     },
     handleSearch() {
+      this.listQuery.leaveWork = ''
+      this.getList()
+      this.flag = true
+    },
+    // 查看离职人员
+    checkLiZhi() {
+      this.listQuery.leaveWork = '1'
+      this.flag = false
       this.getList()
     },
     formatDept(row, column) {
@@ -426,7 +515,12 @@ export default {
       this.diGuiTree(result)
       this.departments = result
     },
-
+    async getBuMen() {
+      const res = await deptSubDept()
+      const result = res.result
+      this.diGuiTree(result)
+      this.departments = result
+    },
     async getSubCompanies() {
       const res = await subCompanyList()
       const result = res.result
@@ -519,6 +613,20 @@ export default {
         })
       }
     },
+    // 离职操作
+    dimission(scope) {
+      console.log(scope)
+      if (scope.row.is_admin == 1) {
+        this.$message({
+          message: '当前人员为管理员，请到个人中心转交权限后离职。',
+          type: 'warning'
+        })
+      } else {
+        this.person.fromUid = scope.row.uid
+        this.liZhi = true
+        this.value11 = ''
+      }
+    },
     async confirmUser() {
       const isEdit = this.dialogType === 'edit'
       if (isEdit) {
@@ -540,8 +648,13 @@ export default {
     },
     // 节点单击事件
     handleSearchDeptNode(data) {
-      this.isShowSelect = false
-      this.listQuery.deptid = data.id
+      if (data.id == data.company_id) {
+        this.isShowSelect = false
+        this.listQuery.deptid = ''
+      } else {
+        this.isShowSelect = false
+        this.listQuery.deptid = data.id
+      }
       this.getList()
     },
 

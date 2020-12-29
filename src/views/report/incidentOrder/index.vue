@@ -182,7 +182,6 @@
 
 <script>
 const entityVO = {
-  uid: localStorage.getItem('uid'),
   buildingIds: [], //建筑id集合
   companyId: '', //公司id
   delayStatus: '', //逾期状态 2: 已逾期 1:未逾期
@@ -436,6 +435,7 @@ export default {
     }
     // ---------------------------------------------------
     this.listQuery.userStatus = this.$route.params.value10
+    this.listQuery.uid = localStorage.getItem('uid')
     this.value10 = this.$route.params.value10
     this.listQuery.timeStatus = this.$route.params.value11
     this.value11 = this.$route.params.value11

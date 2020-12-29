@@ -545,12 +545,14 @@ export default {
       listQuery1: {
         page: 0,
         pageSize: 50,
-        uid: localStorage.getItem('uid')
+        uid: localStorage.getItem('uid'),
+        companyId: localStorage.getItem('companyId')
       },
       listQuery2: {
         page: 1,
         pageSize: 50,
-        uid: localStorage.getItem('uid')
+        uid: localStorage.getItem('uid'),
+        companyId: localStorage.getItem('companyId')
       },
       multipleSelection: [],
       value: '', //部门

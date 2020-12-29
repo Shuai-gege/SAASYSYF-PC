@@ -41,7 +41,7 @@
     <el-row :gutter="20">
       <div
         class="pour"
-        v-if="num.check_task_count != 0"
+        v-if="num.check_task_count != null"
       >注：此功能支持免费使用，{{num.level_name}}仅支持录入{{num.check_task_count}}个任务！请联系客服159-5174-1967购买服务，提高授权数量</div>
     </el-row>
     <!-- 分割线 -->

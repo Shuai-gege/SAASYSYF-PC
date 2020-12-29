@@ -791,7 +791,14 @@ export default {
       if (row.signTime == null) {
         return '-'
       } else {
-        return row.signTime
+        let time = new Date(row.signTime)
+        let FF = time.getFullYear()
+        let MM = this.p(time.getMonth() + 1)
+        let DD = this.p(time.getDate())
+        let HH = this.p(time.getHours())
+        let fen = this.p(time.getMinutes())
+        let SS = this.p(time.getSeconds())
+        return FF + '-' + MM + '-' + DD + ' ' + HH + ':' + fen + ':' + SS
       }
     },
     formattingTime(row, column) {
