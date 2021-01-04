@@ -1087,6 +1087,7 @@ export default {
             if (isEdit) {
               await updateDevice(this.deviceInfo)
             } else {
+              console.log(this.deviceInfo)
               await addDevice(this.deviceInfo)
             }
             this.dialogVisible = false
